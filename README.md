@@ -28,46 +28,75 @@ cp CLAUDE.md /path/to/your/project/
 
 ## MCPセットアップ（推奨3個）
 
-`~/.claude.json` の `mcpServers` に以下を追加してください。
+プロジェクトルートの `.mcp.json` に以下を設定してください。
+
+### このプロジェクト（Azure DevOps 使用）
 
 ```json
 {
   "mcpServers": {
     "context7": {
       "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@latest"],
-      "description": "Vue/Nuxt/Flask/Python等のライブドキュメント検索"
+      "args": ["-y", "@upstash/context7-mcp@latest"]
     },
     "playwright": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp", "--browser", "chrome"],
-      "description": "E2Eテスト自動化（/e2e コマンドで使用）"
+      "args": ["-y", "@playwright/mcp", "--browser", "chrome"]
     },
-    "github": {
+    "azure-devops": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "args": ["-y", "@azure-devops/mcp", "your-org-name", "--authentication", "envvar"],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_あなたのトークンをここに"
-      },
-      "description": "PR作成・Issue管理・コードレビュー"
+        "ADO_MCP_AUTH_TOKEN": "your-pat-here"
+      }
     }
   }
 }
 ```
+
+### GitHub を使うプロジェクトの場合
+
+`azure-devops` の代わりに以下を使用してください：
+
+```json
+"github": {
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-github"],
+  "env": {
+    "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_あなたのトークンをここに"
+  }
+}
+```
+
+### どちらを使うか
+
+| 状況 | 使用するMCP |
+|------|------------|
+| Azure DevOps でソース管理・Work Items・Pipelines を使っている | `azure-devops` |
+| GitHub でソース管理・Issues・Actions を使っている | `github` |
+
+### Azure DevOps PAT の取得方法
+
+1. Azure DevOps → ユーザーアイコン → Personal access tokens
+2. New Token
+3. スコープ: `Full access` または `Code (Read & Write)`、`Work Items (Read & Write)`
+4. 生成されたトークンを `ADO_MCP_AUTH_TOKEN` に設定
+
+**注意**: `env` セクションの `${VAR}` 形式はシェル展開されません。PAT は直接値を記述してください。`.mcp.json` は `.gitignore` に追加してシークレットを保護すること。
 
 ### GitHub PAT の取得方法
 
 1. GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
 2. Generate new token
 3. スコープ: `repo`、`read:org` にチェック
-4. 生成されたトークンを上記の `ghp_あなたのトークンをここに` に貼り付け
+4. 生成されたトークンを `GITHUB_PERSONAL_ACCESS_TOKEN` に設定
 
 ### MCP 設定ファイルの場所
 
-| OS | パス |
-|----|------|
-| macOS / Linux | `~/.claude.json` |
-| Windows | `%APPDATA%\Claude\claude.json` |
+| 推奨 | 理由 |
+|------|------|
+| プロジェクトルート `.mcp.json` | プロジェクト固有の設定を git 管理できる（PAT 含む場合は `.gitignore` に追加） |
+| `~/.claude.json` の `mcpServers` | 全プロジェクト共通で使いたい場合 |
 
 **注意**: 有効な MCP は 10 個以下を推奨（コンテキストウィンドウの節約）
 
@@ -214,8 +243,9 @@ mkdir -p ~/.claude/skills/my-custom-skill
 ### MCP が接続できない
 
 1. `npx` が利用可能か確認: `npx --version`
-2. GitHub PAT の権限（`repo`, `read:org`）を確認
-3. Claude Code を再起動する
+2. PAT の権限を確認（Azure DevOps: `Code`, `Work Items` / GitHub: `repo`, `read:org`）
+3. `.mcp.json` の PAT が直接値で書かれているか確認（`${VAR}` 形式は展開されない）
+4. Claude Code を再起動する
 
 ### コマンドが認識されない
 

@@ -10,6 +10,40 @@ description: Sequential and tmux/worktree orchestration guidance for multi-agent
 
 `/orchestrate [ワークフロータイプ] [タスクの説明]`
 
+---
+
+## ⚠️ メインエージェントの役割（必読）
+
+**このコマンドを実行するメインエージェントは「指揮者」であり「実装者」ではない。**
+
+- コードを自分で書いてはならない
+- ファイルを自分で編集してはならない
+- 実装・テスト・レビューはすべて専門エージェントに委譲する
+- メインエージェントの仕事は「エージェントを呼び出し、結果を受け取り、次のエージェントに渡すこと」のみ
+
+planner の結果が手元にあっても、そのまま実装してはいけない。必ず tdd-guide エージェントに引き継ぐ。
+
+---
+
+## ステップ 0: ワークフロータイプの決定
+
+`/orchestrate <説明>` のようにタイプが未指定の場合、以下の基準で自動推定し、**ユーザーに確認してから開始する**：
+
+| タスクの特徴 | 推定タイプ |
+|-------------|-----------|
+| 新機能の追加・実装 | `feature` |
+| バグ修正・不具合対応 | `bugfix` |
+| コード整理・構造改善 | `refactor` |
+| 認証・権限・セキュリティ | `security` |
+| 上記に当てはまらない | ユーザーに確認 |
+
+**確認メッセージの例：**
+> タスクを「feature（フル機能実装）」ワークフローで実行します：
+> `planner → tdd-guide → code-reviewer → security-reviewer`
+> このワークフローで進めますか？
+
+---
+
 ## ワークフロータイプ
 
 ### feature
@@ -36,18 +70,31 @@ architect -> code-reviewer -> tdd-guide
 security-reviewer -> code-reviewer -> architect
 ```
 
-## 実行パターン
+---
 
-ワークフロー内の各 agent について：
+## 実行パターン（厳守）
 
-1. **agent を呼び出す** - 前の agent からのコンテキストを渡す
-2. **出力を収集** - 構造化された引き継ぎドキュメントとしてまとめる
-3. **次の agent へ渡す** - チェーン内の次の agent へ渡す
-4. **結果を集約** - 最終レポートにまとめる
+各フェーズは必ずこの順序で行う：
 
-## 引き継ぎドキュメントの形式
+1. **エージェントを呼び出す** - 前のフェーズの HANDOFF 文書をコンテキストとして渡す
+2. **結果を受け取る** - エージェントの出力をそのまま収集する
+3. **HANDOFF 文書を作成する** ← 省略禁止
+4. **次のエージェントへ渡す** - HANDOFF 文書を添えて次を呼び出す
+5. **全フェーズ完了後** - 最終レポートを出力する
 
-agent 間の引き継ぎドキュメント：
+### フェーズ完了ゲート
+
+次のエージェントを起動する前に、以下を確認する：
+
+```
+[ ] エージェントが完了した
+[ ] HANDOFF 文書を作成した（下記フォーマット参照）
+[ ] 未解決の問題をすべて HANDOFF 文書に記載した
+```
+
+---
+
+## HANDOFF 文書フォーマット（必須）
 
 ```markdown
 ## HANDOFF: [前の agent] -> [次の agent]
@@ -68,37 +115,50 @@ agent 間の引き継ぎドキュメント：
 [次のステップの提案]
 ```
 
+---
+
 ## 例: Feature ワークフロー
 
 ```
 /orchestrate feature "ユーザー認証を追加"
 ```
 
-実行内容：
+### Phase 1: Planner Agent
 
-1. **Planner Agent**
-   - 要件を分析する
-   - 実装計画を作成する
-   - 依存関係を特定する
-   - 出力: `HANDOFF: planner -> tdd-guide`
+呼び出し後、以下が完了したことを確認する：
+- [ ] 実装計画が作成された
+- [ ] 依存関係が特定された
+- [ ] `HANDOFF: planner -> tdd-guide` を作成した
 
-2. **TDD Guide Agent**
-   - planner の引き継ぎを読む
-   - テストを先に書く
-   - テストをパスするよう実装する
-   - 出力: `HANDOFF: tdd-guide -> code-reviewer`
+→ HANDOFF 文書を添えて tdd-guide を起動する
 
-3. **Code Reviewer Agent**
-   - 実装をレビューする
-   - 問題を確認する
-   - 改善を提案する
-   - 出力: `HANDOFF: code-reviewer -> security-reviewer`
+### Phase 2: TDD Guide Agent
 
-4. **Security Reviewer Agent**
-   - セキュリティ監査を行う
-   - 脆弱性を確認する
-   - 最終承認を行う
-   - 出力: 最終レポート
+呼び出し後、以下が完了したことを確認する：
+- [ ] テストが先に書かれた（RED）
+- [ ] テストをパスする実装ができた（GREEN）
+- [ ] カバレッジ 80% 以上を確認した
+- [ ] `HANDOFF: tdd-guide -> code-reviewer` を作成した
+
+→ HANDOFF 文書を添えて code-reviewer を起動する
+
+### Phase 3: Code Reviewer Agent
+
+呼び出し後、以下が完了したことを確認する：
+- [ ] コード品質の問題が確認された
+- [ ] 重大な問題がある場合は tdd-guide に差し戻した
+- [ ] `HANDOFF: code-reviewer -> security-reviewer` を作成した
+
+→ HANDOFF 文書を添えて security-reviewer を起動する
+
+### Phase 4: Security Reviewer Agent
+
+呼び出し後、以下が完了したことを確認する：
+- [ ] セキュリティ脆弱性の確認が完了した
+- [ ] 問題があれば修正指示を出した
+- [ ] 最終レポートを出力した
+
+---
 
 ## 最終レポートの形式
 
@@ -136,6 +196,8 @@ Security Reviewer: [サマリー]
 --------------
 [SHIP / NEEDS WORK / BLOCKED]
 ```
+
+---
 
 ## 並行実行
 
@@ -229,3 +291,4 @@ $ARGUMENTS:
 3. **認証・決済・PII には security-reviewer を使う**
 4. **引き継ぎは簡潔に** - 次の agent が必要なことに焦点を当てる
 5. **必要に応じて agent 間で検証を実行する**
+6. **メインエージェントはコードを書かない** - 迷ったら専門エージェントに渡す
