@@ -16,6 +16,30 @@ origin: ECC
 
 Comprehensive Playwright patterns for building stable, fast, and maintainable E2E test suites.
 
+## ⚠️ バックエンド起動の必須要件
+
+**E2E テストはバックエンドを起動した状態で実行すること。**
+
+バックエンドなしでは UI の表示確認しかできず、以下の重要なフローを検証できない：
+- API へのデータ送信
+- サーバー側バリデーションの動作
+- フォーム送信後の状態変化
+- ファイルアップロードの実際の処理
+
+### 実行前チェック
+
+```bash
+# フロントエンドの起動確認
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000
+# → 200 でなければ起動する: npm run dev
+
+# バックエンドの起動確認（ポートはプロジェクトに合わせて変更）
+curl -s -o /dev/null -w "%{http_code}" http://localhost:5000
+# → 200 でなければ起動する（プロジェクトの起動コマンドを確認）
+```
+
+バックエンド起動が不可能な場合は、テストレポートに「バックエンド未起動のため UI のみ検証」と明記し、APIを含むフローはスキップ（`test.skip`）して理由を記載すること。
+
 ## Test File Organization
 
 ```

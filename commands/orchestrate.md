@@ -39,7 +39,7 @@ planner の結果が手元にあっても、そのまま実装してはいけな
 
 **確認メッセージの例：**
 > タスクを「feature（フル機能実装）」ワークフローで実行します：
-> `planner → tdd-guide → code-reviewer → security-reviewer`
+> `planner → tdd-guide → build-and-format → e2e-runner → code-reviewer → security-reviewer`
 > このワークフローで進めますか？
 
 ---
@@ -49,19 +49,19 @@ planner の結果が手元にあっても、そのまま実装してはいけな
 ### feature
 フル機能実装ワークフロー：
 ```
-planner -> tdd-guide -> code-reviewer -> security-reviewer
+planner -> tdd-guide -> build-and-format -> e2e-runner -> code-reviewer -> security-reviewer
 ```
 
 ### bugfix
 バグ調査・修正ワークフロー：
 ```
-planner -> tdd-guide -> code-reviewer
+planner -> tdd-guide -> build-and-format -> code-reviewer
 ```
 
 ### refactor
 安全なリファクタリングワークフロー：
 ```
-architect -> code-reviewer -> tdd-guide
+architect -> tdd-guide -> build-and-format -> code-reviewer
 ```
 
 ### security
@@ -145,11 +145,40 @@ security-reviewer -> code-reviewer -> architect
 - [ ] テストが先に書かれた（RED）
 - [ ] テストをパスする実装ができた（GREEN）
 - [ ] カバレッジ 80% 以上を確認した
-- [ ] `HANDOFF: tdd-guide -> code-reviewer` を作成した
+- [ ] `HANDOFF: tdd-guide -> build-and-format` を作成した
 
-→ HANDOFF 文書を添えて code-reviewer を起動する
+→ HANDOFF 文書を添えて build-and-format フェーズへ進む
 
-### Phase 3: Code Reviewer Agent
+### Phase 3: Build & Format チェック
+
+**エージェントではなくスキル実行**。メインエージェントが `/build-and-format` スキルを呼び出す。
+
+呼び出し後、以下が完了したことを確認する：
+- [ ] ビルドが成功した（エラーなし）
+- [ ] フォーマットチェックが通過した
+- [ ] ビルドエラーがある場合は `build-error-resolver` エージェントに差し戻した
+- [ ] `HANDOFF: build-and-format -> e2e-runner` を作成した
+
+> **ビルドエラー時の対応：**
+> `build-error-resolver` エージェントを呼び出し、修正後に再度 build-and-format を実行する。
+> ビルドが通るまで次フェーズへ進まない。
+
+→ ビルド成功を確認後、HANDOFF 文書を添えて e2e-runner を起動する
+
+### Phase 4: E2E Runner Agent
+
+呼び出し後、以下が完了したことを確認する：
+- [ ] 主要なユーザーフローの E2E テストが実行された
+- [ ] スクリーンショット・動画・トレースが保存された
+- [ ] テスト失敗がある場合は原因を特定し tdd-guide に差し戻した
+- [ ] `HANDOFF: e2e-runner -> code-reviewer` を作成した
+
+> **E2E 失敗時の対応：**
+> 失敗内容を HANDOFF に記載し、tdd-guide に差し戻して修正→build→E2E のサイクルを繰り返す。
+
+→ E2E 通過後、HANDOFF 文書を添えて code-reviewer を起動する
+
+### Phase 5: Code Reviewer Agent
 
 呼び出し後、以下が完了したことを確認する：
 - [ ] コード品質の問題が確認された
@@ -158,7 +187,7 @@ security-reviewer -> code-reviewer -> architect
 
 → HANDOFF 文書を添えて security-reviewer を起動する
 
-### Phase 4: Security Reviewer Agent
+### Phase 6: Security Reviewer Agent
 
 呼び出し後、以下が完了したことを確認する：
 - [ ] セキュリティ脆弱性の確認が完了した
@@ -174,7 +203,7 @@ security-reviewer -> code-reviewer -> architect
 ====================
 ワークフロー: feature
 タスク: ユーザー認証を追加
-Agent: planner -> tdd-guide -> code-reviewer -> security-reviewer
+Agent: planner -> tdd-guide -> build-and-format -> e2e-runner -> code-reviewer -> security-reviewer
 
 サマリー
 -------
@@ -184,6 +213,8 @@ Agent: planner -> tdd-guide -> code-reviewer -> security-reviewer
 -------------
 Planner: [サマリー]
 TDD Guide: [サマリー]
+Build & Format: [PASS / FAIL + エラー概要]
+E2E Runner: [PASS / FAIL + 失敗テスト一覧]
 Code Reviewer: [サマリー]
 Security Reviewer: [サマリー]
 
@@ -193,7 +224,12 @@ Security Reviewer: [サマリー]
 
 テスト結果
 ------------
-[テストの合否サマリー]
+ユニット/インテグレーション: [合否・カバレッジ]
+E2E: [合否・実行テスト数・失敗テスト]
+
+ビルドステータス
+----------------
+[PASS / FAIL + エラー詳細]
 
 セキュリティステータス
 ---------------
